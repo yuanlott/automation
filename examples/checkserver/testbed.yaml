@@ -1,0 +1,23 @@
+devices:
+  sudan:
+    connections:
+      cli:
+        ip: 192.168.0.21
+        protocol: ssh
+    credentials:
+      default:
+        password: happytest
+        username: tester
+    os: linux
+    type: linux
+  egypt:
+    connections:
+      cli:
+        ip: 192.168.0.22
+        protocol: ssh
+    credentials:
+      default:
+        password: happytest
+        username: tester
+    os: linux
+    type: linux
