@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>NMTS Graph Viewer</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+:root { --fg:#1f2937; --muted:#6b7280; --accent:#2563eb; --bg:#ffffff; --line:#e5e7eb; }
+body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Arial; margin: 0; color: var(--fg); background: var(--bg); }
+header { padding: 12px 20px; border-bottom:1px solid var(--line); }
+h1 { font-size: 20px; margin: 0; }
+main { max-width: 1100px; margin: 0 auto; padding: 16px; }
+textarea { width:100%; height:250px; font-family: ui-monospace, monospace; font-size:13px;
+  padding:10px; border:1px solid var(--line); border-radius:8px; resize: vertical; }
+select { padding:6px 8px; border-radius:6px; border:1px solid var(--line); margin-top:8px; }
+.controls { display:flex; gap:8px; align-items:center; margin:8px 0; flex-wrap:wrap; }
+#tree { margin-top:10px; }
+ul.tree { list-style:none; padding-left:18px; margin:0; border-left:1px dashed var(--line); }
+.node { position:relative; margin:4px 0; }
+.label { display:inline-flex; align-items:center; gap:6px; padding:4px 6px; border-radius:6px; cursor:pointer; }
+.id { color: var(--fg); font-family: ui-monospace, monospace; font-size: 13px; }
+.type { color: var(--accent); font-size: 12px; text-transform: lowercase; background: #eff6ff; padding: 2px 6px; border-radius: 999px; }
+.caret {
+  width: 1em; display:inline-block; text-align:center; margin-right:6px;
+  font-weight:bold; color:var(--muted); font-family:Arial, sans-serif;
+}
+.caret::before { content:"►"; }
+.node:not(.collapsed) > .label .caret::before { content:"▼"; }
+.leaf .caret { visibility:hidden; }
+.collapsed > ul { display:none; }
+.match > .label { background:#fff7ed; outline:1px solid #fed7aa; }
+.hidden { display:none !important; }
+</style>
+</head>
+<body>
+<header><h1>NMTS Graph Viewer</h1></header>
+<main>
+  <p>Paste valid NMTS <code>textproto</code> content below, then choose a relationship type to view its tree:</p>
+  <textarea id="inputArea" placeholder="Paste your textproto here..."></textarea>
+  <div class="controls">
+    <label for="relationshipSelect">Relationship:</label>
+    <select id="relationshipSelect">
+      <option>RK_CONTAINS</option>
+      <option>RK_CONTROLS</option>
+      <option>RK_SIGNAL_TRANSITS</option>
+      <option>RK_ORIGINATES</option>
+      <option>RK_TERMINATES</option>
+      <option>RK_TRAVERSES</option>
+      <option>RK_DATA_TRANSITS</option>
+      <option>RK_SUPPORTS</option>
+      <option>RK_AGGREGATES</option>
+    </select>
+    <input id="search" type="search" placeholder="Search by id/type..." style="flex:1;min-width:250px;">
+    <button id="expandAll">Expand all</button>
+    <button id="collapseAll">Collapse all</button>
+    <span id="stats" class="muted"></span>
+  </div>
+  <div id="tree"></div>
+</main>
+
+<script>
+/* -------- Parsing -------- */
+function parseTextproto(text) {
+  const entities = [], rels = [];
+  const entityBlocks = text.match(/entity\s*:\s*\{[\s\S]*?\}/g) || [];
+  const relBlocks    = text.match(/relationship\s*:\s*\{[\s\S]*?\}/g) || [];
+
+  for (const b of entityBlocks) {
+    const id = (b.match(/id\s*:\s*"([^"]+)"/) || [])[1];
+    if (!id) continue;
+    const kindMatch = b.match(/(ek_[a-z0-9_]+)\s*:\s*\{/i);
+    const kind = kindMatch ? kindMatch[1].replace(/^ek_/, "") : "";
+    entities.push({ id, type: kind });
+  }
+
+  for (const b of relBlocks) {
+    const kind = (b.match(/kind\s*:\s*(RK_\w+)/) || [])[1];
+    const a    = (b.match(/\ba\s*:\s*"([^"]+)"/) || [])[1];
+    const z    = (b.match(/\bz\s*:\s*"([^"]+)"/) || [])[1];
+    if (kind && a && z) rels.push({ kind, a, z });
+  }
+  return { entities, rels };
+}
+
+function filterByRelationship(entities, rels, kind){
+  const edges=[], keepIds=new Set();
+  for(const r of rels){
+    if(r.kind===kind){ edges.push([r.a,r.z]); keepIds.add(r.a); keepIds.add(r.z); }
+  }
+  const filtered=entities.filter(e=>keepIds.has(e.id));
+  return {filtered,edges};
+}
+
+function buildTree(entities, edges){
+  const entMap=Object.fromEntries(entities.map(e=>[e.id,e]));
+  const children={}, referenced=new Set(), parents=new Set();
+  for(const [a,z] of edges){ if(!a||!z) continue;
+    (children[a] ||= []).push(z); parents.add(a); referenced.add(z);
+  }
+  const allIds=new Set(Object.keys(entMap));
+  const roots=[...new Set([...parents].filter(p=>!referenced.has(p))
+    .concat([...allIds].filter(i=>!parents.has(i)&&!referenced.has(i))))];
+
+  function makeNode(id){
+    const e=entMap[id]||{};
+    return {id, type:e.type||"", children:(children[id]||[]).map(makeNode)};
+  }
+  return roots.map(makeNode);
+}
+
+/* -------- Tree Renderer -------- */
+function renderTree(forest){
+  const container=document.getElementById('tree');
+  container.innerHTML='';
+  const rootUL=document.createElement('ul');
+  rootUL.className='tree'; container.appendChild(rootUL);
+  let count=0;
+
+  function createNode(node){
+    count++;
+    const li=document.createElement('li'); li.className='node';
+    const hasChildren=node.children&&node.children.length>0;
+    if(hasChildren) li.classList.add('collapsed'); else li.classList.add('leaf');
+    li.dataset.id=node.id; li.dataset.type=node.type.toLowerCase();
+
+    const label=document.createElement('div'); label.className='label';
+    const caret=document.createElement('span'); caret.className='caret'; label.appendChild(caret);
+
+    const idSpan=document.createElement('span');
+    idSpan.className='id'; idSpan.textContent=node.id;
+    label.appendChild(idSpan);
+
+    if(node.type){
+      const type=document.createElement('span');
+      type.className='type'; type.textContent=node.type;
+      label.appendChild(type);
+    }
+
+    li.appendChild(label);
+    if(hasChildren){
+      const ul=document.createElement('ul'); ul.className='tree';
+      node.children.forEach(c=>ul.appendChild(createNode(c))); li.appendChild(ul);
+    }
+    label.addEventListener('click',e=>{ if(hasChildren){ li.classList.toggle('collapsed'); e.stopPropagation(); }});
+    return li;
+  }
+
+  forest.forEach(n=>rootUL.appendChild(createNode(n)));
+  document.getElementById('stats').textContent=`${count} node${count===1?'':'s'}`;
+}
+
+/* -------- UI Wiring -------- */
+const textarea=document.getElementById('inputArea');
+const select=document.getElementById('relationshipSelect');
+textarea.addEventListener('input',updateTree);
+select.addEventListener('change',updateTree);
+document.getElementById('expandAll').onclick=()=>document.querySelectorAll('#tree .node').forEach(li=>{if(!li.classList.contains('leaf'))li.classList.remove('collapsed');});
+document.getElementById('collapseAll').onclick=()=>document.querySelectorAll('#tree .node').forEach(li=>{if(!li.classList.contains('leaf'))li.classList.add('collapsed');});
+document.getElementById('search').oninput=()=>searchFilter(document.getElementById('search').value);
+
+function updateTree(){
+  const text=textarea.value.trim(); if(!text){document.getElementById('tree').innerHTML=''; return;}
+  const {entities,rels}=parseTextproto(text);
+  if(!entities.length||!rels.length){document.getElementById('tree').innerHTML='<p style="color:#b91c1c">No entities or relationships found.</p>';return;}
+  const {filtered,edges}=filterByRelationship(entities,rels,select.value);
+  const tree=buildTree(filtered,edges);
+  renderTree(tree);
+}
+
+function searchFilter(q){
+  q=(q||'').toLowerCase();
+  const nodes=[...document.querySelectorAll('#tree .node')];
+  if(!q){nodes.forEach(n=>n.classList.remove('hidden','match'));return;}
+  nodes.forEach(n=>{
+    const m=(n.dataset.id||'').toLowerCase().includes(q)||(n.dataset.type||'').includes(q);
+    n.classList.toggle('match',m); n.classList.toggle('hidden',!m);
+  });
+  nodes.filter(n=>n.classList.contains('match')).forEach(n=>{
+    let p=n.parentElement;
+    while(p&&p.id!=='tree'){ if(p.classList.contains('node')){p.classList.remove('collapsed','hidden');} p=p.parentElement; }
+  });
+}
+</script>
+</body>
+</html>
