@@ -8,20 +8,24 @@ import re
 import sys
 from collections import defaultdict
 
-ENTITY_BLOCK_RE = re.compile(r'(?=^\s*entity\s*:\s*\{)', re.MULTILINE)
-REL_BLOCK_RE    = re.compile(r'(?=^\s*relationship\s*:\s*\{)', re.MULTILINE)
+ENTITY_BLOCK_RE = re.compile(r"(?=^\s*entity\s*:\s*\{)", re.MULTILINE)
+REL_BLOCK_RE = re.compile(r"(?=^\s*relationship\s*:\s*\{)", re.MULTILINE)
 
-ID_RE           = re.compile(r'^\s*id\s*:\s*"([^"]+)"\s*$', re.MULTILINE)
-NAME_RE         = re.compile(r'^\s*name\s*:\s*"([^"]+)"\s*$', re.MULTILINE)
-KIND_RE         = re.compile(r'^\s*kind\s*:\s*(RK_\w+)\s*$', re.MULTILINE)
-A_RE            = re.compile(r'^\s*a\s*:\s*"([^"]+)"\s*$', re.MULTILINE)
-Z_RE            = re.compile(r'^\s*z\s*:\s*"([^"]+)"\s*$', re.MULTILINE)
+ID_RE = re.compile(r'^\s*id\s*:\s*"([^"]+)"\s*$', re.MULTILINE)
+NAME_RE = re.compile(r'^\s*name\s*:\s*"([^"]+)"\s*$', re.MULTILINE)
+KIND_RE = re.compile(r"^\s*kind\s*:\s*(RK_\w+)\s*$", re.MULTILINE)
+A_RE = re.compile(r'^\s*a\s*:\s*"([^"]+)"\s*$', re.MULTILINE)
+Z_RE = re.compile(r'^\s*z\s*:\s*"([^"]+)"\s*$', re.MULTILINE)
+
 
 def parse_args():
-    p = argparse.ArgumentParser(description="Render RK_CONTAINS hierarchy from a textproto into an interactive HTML tree.")
+    p = argparse.ArgumentParser(
+        description="Render RK_CONTAINS hierarchy from a textproto into an interactive HTML tree."
+    )
     p.add_argument("-i", "--input", required=True, help="Input .txtproto file")
     p.add_argument("-o", "--output", required=True, help="Output .html file")
     return p.parse_args()
+
 
 def split_top_blocks(text):
     starts = []
@@ -33,9 +37,10 @@ def split_top_blocks(text):
 
     blocks = []
     for i, (_, start) in enumerate(starts):
-        end = starts[i+1][1] if i+1 < len(starts) else len(text)
+        end = starts[i + 1][1] if i + 1 < len(starts) else len(text)
         blocks.append(text[start:end].strip())
     return blocks
+
 
 def extract_entity(block):
     m_id = ID_RE.search(block)
@@ -44,9 +49,10 @@ def extract_entity(block):
     eid = m_id.group(1)
     m_name = NAME_RE.search(block)
     name = m_name.group(1) if m_name else eid
-    m_kind = re.search(r'^\s*ek_([a-z0-9_]+)\s*:\s*\{', block, re.MULTILINE)
+    m_kind = re.search(r"^\s*ek_([a-z0-9_]+)\s*:\s*\{", block, re.MULTILINE)
     display_type = m_kind.group(1) if m_kind else ""
     return eid, name, display_type
+
 
 def extract_relationship(block):
     m_kind = KIND_RE.search(block)
@@ -58,6 +64,7 @@ def extract_relationship(block):
     a = m_a.group(1) if m_a else None
     z = m_z.group(1) if m_z else None
     return kind, a, z
+
 
 def build_forest(entities, contains_edges):
     children_map = defaultdict(list)
@@ -81,11 +88,12 @@ def build_forest(entities, contains_edges):
             "id": eid,
             "name": info.get("name", eid),
             "type": info.get("type", ""),
-            "children": [make_node(cid) for cid in sorted(children_map.get(eid, []))]
+            "children": [make_node(cid) for cid in sorted(children_map.get(eid, []))],
         }
 
     forest = [make_node(r) for r in sorted(roots)]
     return forest
+
 
 def generate_html(forest, title="NMTS Containment Tree"):
     data_json = json.dumps(forest, ensure_ascii=False)
@@ -128,7 +136,6 @@ def generate_html(forest, title="NMTS Containment Tree"):
   content: "▼";    /* expanded = down-pointing triangle */
 }}
   .leaf .caret {{ visibility: hidden; }}
-  
   .hidden {{ display: none !important; }}
   .match > .label {{ background: #fff7ed; outline: 1px solid #fed7aa; }}
   .muted {{ opacity: .6; }}
@@ -291,6 +298,7 @@ function searchFilter(q) {{
 </body>
 </html>"""
 
+
 def main():
     args = parse_args()
     try:
@@ -325,6 +333,7 @@ def main():
             f.write(html_out)
     except Exception as e:
         sys.exit(f"Error writing output file: {e}")
+
 
 if __name__ == "__main__":
     main()
