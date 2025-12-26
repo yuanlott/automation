@@ -22,12 +22,14 @@ from typing import Optional
 # FF FB 03: IAC WILL SUPPRESS-GA
 # FF FB 00: IAC WILL BINARY
 # FF FD 00: IAC DO BINARY
-TELNET_OPTS = bytes([
-    0xff, 0xfb, 0x01,
-    0xff, 0xfb, 0x03,
-    0xff, 0xfb, 0x00,
-    0xff, 0xfd, 0x00,
-])
+TELNET_OPTS = bytes(
+    [
+        0xFF, 0xFB, 0x01,
+        0xFF, 0xFB, 0x03,
+        0xFF, 0xFB, 0x00,
+        0xFF, 0xFD, 0x00,
+    ]
+)
 
 BUF_SZ = 4096
 
@@ -36,15 +38,28 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Wrap a program (e.g., Cisco IOL) and expose its console via Telnet on a TCP port."
     )
-    parser.add_argument("-m", "--program", required=True,
-                        help="Program to wrap (full path if needed).")
-    parser.add_argument("-p", "--port", type=int, default=10000,
-                        help="TCP port for Telnet access (default: 10000; must be >= 1024).")
-    parser.add_argument("-n", "--name", default=None,
-                        help="argv[0] name passed to exec (optional; defaults to program).")
+    parser.add_argument(
+        "-m", "--program", required=True, help="Program to wrap (full path if needed)."
+    )
+    parser.add_argument(
+        "-p",
+        "--port",
+        type=int,
+        default=10000,
+        help="TCP port for Telnet access (default: 10000; must be >= 1024).",
+    )
+    parser.add_argument(
+        "-n",
+        "--name",
+        default=None,
+        help="argv[0] name passed to exec (optional; defaults to program).",
+    )
     # `-- [OPTIONS]` passthrough
-    parser.add_argument("program_args", nargs=argparse.REMAINDER,
-                        help="Arguments passed to the wrapped program. Use: -- <args...>")
+    parser.add_argument(
+        "program_args",
+        nargs=argparse.REMAINDER,
+        help="Arguments passed to the wrapped program. Use: -- <args...>",
+    )
     args = parser.parse_args()
 
     if args.port < 1024:
@@ -72,8 +87,10 @@ class Wrapper:
         self.client_sock: Optional[socket.socket] = None
 
         self.child_pid: int = 0
-        self.parent_end: Optional[socket.socket] = None   # parent side of socketpair
-        self.child_end: Optional[socket.socket] = None    # child side (kept only before fork)
+        self.parent_end: Optional[socket.socket] = None  # parent side of socketpair
+        self.child_end: Optional[socket.socket] = (
+            None  # child side (kept only before fork)
+        )
 
         self._stopping = False
 
@@ -189,7 +206,10 @@ class Wrapper:
                 self.child_end.close()
                 self.child_end = None
 
-            print(f"\nParent PID is {os.getpid()}, Child PID is {self.child_pid}.", flush=True)
+            print(
+                f"\nParent PID is {os.getpid()}, Child PID is {self.child_pid}.",
+                flush=True,
+            )
 
     def _accept_client(self):
         assert self.listen_sock is not None
@@ -315,7 +335,7 @@ def main():
         program=args.program,
         name=args.name,
         program_args=args.program_args,
-        port=args.port
+        port=args.port,
     )
     wrapper.run()
 
