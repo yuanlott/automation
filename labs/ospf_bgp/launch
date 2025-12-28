@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # 1. Check if IOL64 environment variable exists
 if [[ -z "${IOL64:-}" ]]; then
