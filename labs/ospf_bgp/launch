@@ -1,0 +1,22 @@
+#!/bin/sh
+
+# 1. Check if IOL64 environment variable exists
+if [[ -z "${IOL64:-}" ]]; then
+    echo "Error: IOL64 environment variable is not set."
+    exit 1
+fi
+
+# 2. Check if IOL64 points to an executable file
+if [[ ! -x "$IOL64" ]]; then
+    echo "Error: IOL64 is set to '$IOL64' but it is not an executable file."
+    exit 1
+fi
+
+WINDOW_PROPERTY="-sl 10000 -geometry 85x24 "
+
+xterm $WINDOW_PROPERTY -T "ISP" -e $IOL64 -e2 -s0 30 &
+xterm $WINDOW_PROPERTY -T "R1" -e $IOL64 -e2 -s0 31 &
+xterm $WINDOW_PROPERTY -T "R2" -e $IOL64 -e2 -s0 32 &
+xterm $WINDOW_PROPERTY -T "R3" -e $IOL64 -e2 -s0 33 &
+xterm $WINDOW_PROPERTY -T "R4" -e $IOL64 -e2 -s0 34 &
+xterm $WINDOW_PROPERTY -T "R5" -e $IOL64 -e2 -s0 35 &
