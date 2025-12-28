@@ -14,9 +14,9 @@ fi
 
 WINDOW_PROPERTY="-sl 10000 -geometry 85x24 "
 
-xterm $WINDOW_PROPERTY -T "ISP" -e $IOL64 -e2 -s0 30 &
-xterm $WINDOW_PROPERTY -T "R1" -e $IOL64 -e2 -s0 31 &
-xterm $WINDOW_PROPERTY -T "R2" -e $IOL64 -e2 -s0 32 &
-xterm $WINDOW_PROPERTY -T "R3" -e $IOL64 -e2 -s0 33 &
-xterm $WINDOW_PROPERTY -T "R4" -e $IOL64 -e2 -s0 34 &
-xterm $WINDOW_PROPERTY -T "R5" -e $IOL64 -e2 -s0 35 &
+xterm $WINDOW_PROPERTY -T "ISP" -e $IOL64 -c ISP.cfg -e2 -s0 30 &
+xterm $WINDOW_PROPERTY -T "R1" -e $IOL64 -c R1.cfg -e2 -s0 31 &
+xterm $WINDOW_PROPERTY -T "R2" -e $IOL64 -c R2.cfg -e2 -s0 32 &
+xterm $WINDOW_PROPERTY -T "R3" -e $IOL64 -c R3.cfg -e2 -s0 33 &
+xterm $WINDOW_PROPERTY -T "R4" -e $IOL64 -c R4.cfg -e2 -s0 34 &
+xterm $WINDOW_PROPERTY -T "R5" -e $IOL64 -c R5.cfg -e2 -s0 35 &
